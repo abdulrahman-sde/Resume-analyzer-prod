@@ -22,10 +22,11 @@ class Job(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    user: Mapped["User"] = relationship("User", back_populates="jobs", lazy="joined")
+    user: Mapped["User"] = relationship("User", back_populates="jobs", lazy="noload")
     analyses: Mapped[List["Analysis"]] = relationship(
         "Analysis",
         back_populates="job",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        passive_deletes=True,
+        lazy="noload",
     )

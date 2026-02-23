@@ -29,7 +29,8 @@ class Conversation(Base):
         "Message",
         back_populates="conversation",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        passive_deletes=True,
+        lazy="noload",
         order_by="Message.created_at.asc()",
     )
 

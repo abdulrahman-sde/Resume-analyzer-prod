@@ -32,7 +32,8 @@ class User(Base):
         "Job",
         back_populates="user",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        passive_deletes=True,
+        lazy="noload",
         order_by="Job.created_at.desc()",
     )
 
@@ -40,7 +41,8 @@ class User(Base):
         "Resume",
         back_populates="user",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        passive_deletes=True,
+        lazy="noload",
         order_by="Resume.created_at.desc()",
     )
 
@@ -48,7 +50,8 @@ class User(Base):
         "Analysis",
         back_populates="user",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        passive_deletes=True,
+        lazy="noload",
         order_by="Analysis.created_at.desc()",
     )
 
@@ -56,6 +59,7 @@ class User(Base):
         "Conversation",
         back_populates="user",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        passive_deletes=True,
+        lazy="noload",
         order_by="Conversation.created_at.desc()",
     )
