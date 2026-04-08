@@ -1,6 +1,9 @@
 import asyncio
+import logging
 
 from fastapi import Depends
+
+logger = logging.getLogger(__name__)
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
@@ -32,6 +35,7 @@ class AuthService:
         existing_user = result.scalar_one_or_none()
 
         if existing_user:
+            logger.warning("Registration failed: User with email %s already exists", register_data.email)
             raise ConflictException(message="User with this email already exists")
 
         hashed_password = await asyncio.to_thread(
@@ -44,6 +48,7 @@ class AuthService:
         )
         self.db.add(user)
         await self.db.flush()
+        logger.info("User registered successfully: %s (id: %d)", user.email, user.id)
         return UserRegisterResponse.model_validate(user)
 
     async def login(self, credentials: UserLogin) -> UserLoginResponse:
@@ -53,14 +58,17 @@ class AuthService:
         user = result.scalar_one_or_none()
 
         if not user:
+            logger.warning("Login failed: User not found with email %s", credentials.email)
             raise UnauthorizedException(message="Invalid credentials")
 
         is_valid = await asyncio.to_thread(
             verify_password, credentials.password, user.password
         )
         if not is_valid:
+            logger.warning("Login failed: Invalid password for email %s", credentials.email)
             raise UnauthorizedException(message="Invalid credentials")
-
+        
+        logger.info("User logged in successfully: %s (id: %d)", user.email, user.id)
         payload = {
             "user_id": user.id,
             "email": user.email,

@@ -163,7 +163,6 @@ def build_analysis_chain():
     return chain
 
 
-# Module-level singleton — built once on first use, reused for every request
 _analysis_chain = None
 
 

@@ -17,7 +17,7 @@ def build_chatbot_graph():
 
     Flow:
         START → chat_node → (has tool_calls?) → tool_node → chat_node (loop)
-                           → (no tool_calls?) → END
+        → (no tool_calls?) → END
     """
     graph = StateGraph(AgentState)
 

@@ -160,6 +160,7 @@ class AnalysisService:
 
         result = await self.db.execute(query)
         analyses = result.scalars().all()
+        logger.info("Retrieved %d analyses for user_id: %d", len(analyses), user.id)
         return [
             AnalysisResponse(
                 id=a.id,
@@ -186,9 +187,11 @@ class AnalysisService:
         )
         analysis = result.scalar_one_or_none()
         if not analysis:
+            logger.warning("Analysis with id %d not found for user_id: %d", analysis_id, user.id)
             raise NotFoundException(
                 message=f"Analysis with id {analysis_id} not found"
             )
+        logger.info("Successfully retrieved analysis id: %d for user_id: %d", analysis_id, user.id)
         return AnalysisResponse(
             id=analysis.id,
             resume_id=analysis.resume_id,
@@ -206,3 +209,126 @@ class AnalysisService:
 
 def get_analysis_service(db: AsyncSession = Depends(get_db)) -> AnalysisService:
     return AnalysisService(db)
+
+# ── Shared Data Formatting Functions for AI Agents ──────────────────────────
+
+import json
+from sqlalchemy import desc
+
+async def get_all_analyses_json(db: AsyncSession, user_id: int) -> str:
+    """Get a summary list of all resume analyses for the current user."""
+    result = await db.execute(
+        select(Analysis)
+        .where(Analysis.user_id == user_id)
+        .order_by(desc(Analysis.created_at))
+    )
+    analyses = result.scalars().all()
+    logger.info("AI Agent: Retrieved %d analyses for user_id: %d", len(analyses), user_id)
+
+    if not analyses:
+        return "No analyses found. The user hasn't analyzed any resumes yet."
+
+    items = []
+    for a in analyses:
+        items.append({
+            "id": a.id,
+            "candidate_name": a.candidate_name,
+            "target_role": a.target_role,
+            "overall_score": a.overall_score,
+            "recommendation": a.recommendation,
+            "job_id": a.job_id,
+            "created_at": a.created_at.isoformat(),
+        })
+    return json.dumps(items, indent=2)
+
+
+async def get_analysis_details_json(db: AsyncSession, user_id: int, analysis_id: int) -> str:
+    """Get the full detailed analysis for a specific analysis ID."""
+    result = await db.execute(
+        select(Analysis).where(
+            Analysis.id == analysis_id, Analysis.user_id == user_id
+        )
+    )
+    analysis = result.scalar_one_or_none()
+
+    if not analysis:
+        logger.warning("AI Agent: Analysis with ID %d not found for user_id: %d", analysis_id, user_id)
+        return f"Analysis with ID {analysis_id} not found."
+
+    logger.info("AI Agent: Successfully retrieved details for analysis id: %d", analysis_id)
+    data = {
+        "id": analysis.id,
+        "candidate_name": analysis.candidate_name,
+        "target_role": analysis.target_role,
+        "overall_score": analysis.overall_score,
+        "recommendation": analysis.recommendation,
+        "total_experience_years": analysis.total_experience_years,
+        "job_id": analysis.job_id,
+        "created_at": analysis.created_at.isoformat(),
+        "analysis_result": analysis.analysis_result,
+    }
+    return json.dumps(data, indent=2, default=str)
+
+
+async def search_analyses_by_candidate_json(db: AsyncSession, user_id: int, candidate_name: str) -> str:
+    """Search analyses by candidate name."""
+    result = await db.execute(
+        select(Analysis)
+        .where(
+            Analysis.user_id == user_id,
+            Analysis.candidate_name.ilike(f"%{candidate_name}%"),
+        )
+        .order_by(desc(Analysis.overall_score))
+    )
+    analyses = result.scalars().all()
+    logger.info("AI Agent: Found %d analyses matching candidate name '%s' for user_id: %d", len(analyses), candidate_name, user_id)
+
+    if not analyses:
+        return f"No analyses found for candidate matching '{candidate_name}'."
+
+    items = []
+    for a in analyses:
+        items.append({
+            "id": a.id,
+            "candidate_name": a.candidate_name,
+            "target_role": a.target_role,
+            "overall_score": a.overall_score,
+            "recommendation": a.recommendation,
+            "created_at": a.created_at.isoformat(),
+        })
+    return json.dumps(items, indent=2)
+
+
+async def get_top_candidates_json(db: AsyncSession, user_id: int, limit: int = 5, job_id: int | None = None) -> str:
+    """Get the top candidates ranked by overall score."""
+    query = select(Analysis).where(Analysis.user_id == user_id)
+
+    if job_id is not None:
+        query = query.where(Analysis.job_id == job_id)
+
+    query = query.order_by(desc(Analysis.overall_score)).limit(limit)
+    result = await db.execute(query)
+    analyses = result.scalars().all()
+    logger.info("AI Agent: Retrieved top %d candidates for user_id: %d (job_filter: %s)", len(analyses), user_id, job_id)
+
+    if not analyses:
+        return "No analyses found."
+
+    items = []
+    for rank, a in enumerate(analyses, 1):
+        item = {
+            "rank": rank,
+            "candidate_name": a.candidate_name,
+            "target_role": a.target_role,
+            "overall_score": a.overall_score,
+            "recommendation": a.recommendation,
+        }
+        if a.job_id:
+            job_result = await db.execute(
+                select(Job.title).where(Job.id == a.job_id)
+            )
+            job_title = job_result.scalar_one_or_none()
+            item["job_title"] = job_title or "Unknown"
+        items.append(item)
+
+    return json.dumps(items, indent=2)

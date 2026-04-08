@@ -53,8 +53,10 @@ class ChatService:
             conv = Conversation(title="New Chat", user_id=user_id)
             self.db.add(conv)
             await self.db.flush()
+            logger.info("Created new conversation id: %d for user_id: %d", conv.id, user_id)
 
         # --- 2. Persist user message ---
+        logger.info("Processing message for user_id: %d in conv_id: %d", user_id, conv.id)
         user_msg = Message(
             conversation_id=conv.id,
             role="user",
@@ -62,6 +64,7 @@ class ChatService:
         )
         self.db.add(user_msg)
         await self.db.flush()
+        logger.info("User message persisted (id: %d)", user_msg.id)
 
         # Send conversation_id immediately so frontend can track multi-turn
         yield f"data: {json.dumps({'type': 'meta', 'conversation_id': conv.id})}\n\n"
@@ -80,6 +83,7 @@ class ChatService:
             lc_messages.append(HumanMessage(content=message))
 
         # --- 4. Stream LLM response ---
+        logger.info("Starting LLM stream for conv_id: %d (history depth: %d)", conv.id, len(lc_messages))
         # Share our DB session with tools via contextvars
         ctx_token = set_current_session(self.db)
         full_response = ""
@@ -114,8 +118,10 @@ class ChatService:
                 conv.title = message[:80] + ("..." if len(message) > 80 else "")
 
             await self.db.flush()
+            logger.info("AI response persisted for conv_id: %d (length: %d chars)", conv.id, len(full_response))
 
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        logger.info("Finished streaming for conv_id: %d", conv.id)
 
     # ------------------------------------------------------------------
     # Conversation CRUD
@@ -145,6 +151,7 @@ class ChatService:
                     message_count=msg_count,
                 )
             )
+        logger.info("Retrieved %d conversations for user_id: %d", len(items), user_id)
         return items
 
     async def get_conversation_detail(
@@ -153,9 +160,9 @@ class ChatService:
         """Get a conversation with all its messages."""
         conv = await self._get_conversation(conversation_id, user_id)
         if not conv:
+            logger.warning("Conversation id %d not found for user_id: %d", conversation_id, user_id)
             return None
-
-        return ConversationDetailResponse(
+        detail = ConversationDetailResponse(
             id=conv.id,
             title=conv.title,
             created_at=conv.created_at,
@@ -170,14 +177,18 @@ class ChatService:
                 for m in conv.messages
             ],
         )
+        logger.info("Retrieved detail for conversation id: %d (user_id: %d, messages: %d)", conv.id, user_id, len(conv.messages))
+        return detail
 
     async def delete_conversation(self, conversation_id: int, user_id: int) -> bool:
         """Delete a conversation and all its messages."""
         conv = await self._get_conversation(conversation_id, user_id)
         if not conv:
+            logger.warning("Attempted to delete non-existent conversation id: %d for user_id: %d", conversation_id, user_id)
             return False
         await self.db.delete(conv)
         await self.db.flush()
+        logger.info("Deleted conversation id: %d for user_id: %d", conversation_id, user_id)
         return True
 
     # ------------------------------------------------------------------
