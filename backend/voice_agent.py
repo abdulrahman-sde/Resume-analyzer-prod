@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 from livekit.agents import Agent, AgentSession, JobContext, JobProcess, cli, WorkerOptions
 from livekit.agents.llm import function_tool
-from livekit.plugins import  deepgram, groq, elevenlabs,silero,openai
+from livekit.plugins import  deepgram, groq, elevenlabs,silero
 
 from app.core.db import get_tool_session
 from app.services.analysis_service import (
@@ -179,13 +179,6 @@ async def entrypoint(ctx: JobContext):
         return
 
     logger.info(f"Starting session for user_id: {user_id}")
-
-    # session = AgentSession(
-    #     vad=ctx.proc.userdata["vad"],
-    #     stt=openai.STT(model="whisper-1"),
-    #     llm=openai.LLM(model="gpt-4o"),
-    #     tts=openai.TTS(model="tts-1", voice="alloy"),
-    # )
 
     session = AgentSession(
         vad=ctx.proc.userdata["vad"],

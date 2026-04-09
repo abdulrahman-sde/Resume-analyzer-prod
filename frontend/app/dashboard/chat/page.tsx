@@ -195,7 +195,7 @@ export default function DashboardChatPage() {
 
       {/* Input Area */}
       <div className="pb-8 px-4 md:px-20 pt-2 shrink-0 bg-gradient-to-t from-[#050505] via-[#050505] to-transparent">
-        <SuggestionBar onSuggestionClick={sendMessage} show={showSuggestions} />
+        {/* <SuggestionBar onSuggestionClick={sendMessage} show={showSuggestions} /> */}
         <ChatInput
           value={input}
           onChange={setInput}

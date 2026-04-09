@@ -14,7 +14,7 @@ import {
   PlusIcon,
   SidebarIcon,
 } from "@/constants/icons";
-import { LogOut } from "lucide-react";
+import { LogOut, Mic } from "lucide-react";
 import { signOut } from "@/lib/auth";
 
 const NAV_ITEMS = [
@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { label: "My Jobs", href: "/dashboard/jobs", icon: BriefcaseIcon },
   { label: "Analyses", href: "/dashboard/analysis", icon: ScanIcon },
   { label: "AI Assistant", href: "/dashboard/chat", icon: SparklesIcon },
+  { label: "Voice Agent", href: "/dashboard/voice", icon: Mic },
 ];
 
 const ACTION_ITEMS = [
